@@ -16,9 +16,6 @@ np.random.seed(4)
 from tensorflow import set_random_seed
 set_random_seed(4)
 
-# REQUIRES: uses data_reader.py price df
-# MODIFIES: df
-# EFFECTS: adds columns for returns, log-returns, up-down
 def calc_returns(df):
     df['returns'] = df.pct_change()
     df['log-returns'] = np.log(df.iloc[:,0]).diff()
@@ -26,18 +23,11 @@ def calc_returns(df):
     df_dropna = df.dropna()
     return df, df_dropna
 
-
-# REQUIRES: df must have 'returns' column
-# MODIFIES: df
-# EFFECTS: removes na
 def remove_na(df):
     df = df[df['returns'].notna()]
     return df
 
 
-# REQUIRES: n/a
-# MODIFIES: none
-# EFFECTS: returns continuous wavelet transform 
 def get_cwt_features(scale_bot,scale_top,scale_incr,data):
     scales = np.arange(scale_bot,scale_top,step=scale_incr)
 
@@ -47,24 +37,15 @@ def get_cwt_features(scale_bot,scale_top,scale_incr,data):
     cwt_features.set_index(returns.index,inplace=True)
     return cwt_features
 
-# REQUIRES: data is features
-# MODIFIES: none
-# EFFECTS: adds to features historical data points
 def prep_features(data,history_points):
     hist = np.array([data[i:i + history_points].copy() for i in range(len(data) - history_points)])
     return hist
 
-# REQUIRES: data is labels
-# MODIFIES: none
-# EFFECTS: preps labels, accounting for data points
 def prep_labels(data,history_points):
     hist_labels = np.array([data[i + history_points].copy() for i in range(len(data) - history_points)])
     hist_labels = np.expand_dims(hist_labels, -1)
     return hist_labels
 
-# REQUIRES: valid feature and label points
-# MODIFIES: none
-# EFFECTS: splits features and labels into training and test data sets
 def split_data(feats, labels, test_split):
     assert feats.shape[0] == labels.shape[0]
     n = int(labels.shape[0]*test_split)
@@ -74,9 +55,6 @@ def split_data(feats, labels, test_split):
     label_test = labels[n:]
     return feature_train, label_train, feature_test, label_test
 
-# REQUIRES: valid train and test datasets
-# MODIFIES: none
-# EFFECTS: lstm input with sigmoid activation, linear output
 def test(hist_feats,feature_train,feature_test,label_train,label_test,epoch,batch):
     feat_shape_ax1 = hist_feats.shape[1]
     feat_shape_ax2 = hist_feats.shape[2]
@@ -87,7 +65,7 @@ def test(hist_feats,feature_train,feature_test,label_train,label_test,epoch,batc
     x = Activation('sigmoid', name='sigmoid_0')(x)
     x = Dense(1, name='dense_1')(x)
     output = Activation('linear', name='linear_output')(x)
-
+#     output = Activation('sigmoid', name='linear_output')(x)
     model = Model(inputs=lstm_input, outputs=output)
 
     adam = optimizers.Adam(lr=0.0005)
@@ -99,6 +77,10 @@ def test(hist_feats,feature_train,feature_test,label_train,label_test,epoch,batc
     print(evaluation)
 
     test_predicted = model.predict(feature_test)
+    # plt.plot(test_predicted,'o')
+    # plt.plot(label_test,'+')
+    # plt.legend(['predicted','real'])
+    # plt.show()
     return test_predicted, label_test
 
 # not used
@@ -136,9 +118,6 @@ def test2(hist_feats,feature_train,feature_test,label_train,label_test,epoch):
     # plt.show()
     return test_predicted, label_test
 
-# REQUIRES: n/a 
-# MODIFIES: none
-# EFFECTS: outputs testing directional accuracy
 def test_stats(predicted, real):
     c = 0
     s = 0
@@ -152,11 +131,10 @@ def test_stats(predicted, real):
     pct_correct_da = c/s
     
     return pct_correct_da
-
 # get data
 start = '2002-01-01'
 end = '2019-01-10'
-ticker = '^GSPC'
+ticker = 'AAPL'
 
 df = data_reader.download(ticker,start,end)
 
@@ -225,4 +203,4 @@ for i in tops:
                 fname_test_dpoints = str(ticker)+'_datapoints_e'+str(e)+'b'+str(b)+'cwttop'+str(i)+'cwtinc'+str(1)+'h'+str(k)+'pctacc'+str(pct_da)+'.csv'
                 data_reader.save_df(test_datapoints,fname_test_dpoints)
 
-data_reader.save_df(report,'GSPC_hypertests.csv')
+data_reader.save_df(report,'AAPL_hypertests.csv')
